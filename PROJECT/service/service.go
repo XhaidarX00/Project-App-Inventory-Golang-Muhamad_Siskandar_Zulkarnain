@@ -35,6 +35,10 @@ func (usr *UserService) LoginService(user model.Users) (*model.Response, string,
 
 func ManageProduct(db *sql.DB) bool {
 	index := utils.ChoseMenu(view.MenuProduct)
+	if index == 0 {
+		return false
+	}
+
 	params := repository.CRUDParams{DB: db}
 
 	switch index {
@@ -151,6 +155,10 @@ func ManageLocations(db *sql.DB) bool {
 
 func SearchBy(db *sql.DB) bool {
 	index := utils.ChoseMenu(view.MenuSearch)
+	if index == 0 {
+		return false
+	}
+
 	params := repository.CRUDParams{DB: db}
 	params.TableName = "products"
 	params.Page = 1
@@ -200,6 +208,10 @@ func buildSearchQuery(column string, keywords []string) string {
 
 func ManageTrxHistory(db *sql.DB) bool {
 	index := utils.ChoseMenu(view.MenuTransaction)
+	if index == 0 {
+		return false
+	}
+
 	params := repository.CRUDParams{DB: db}
 
 	params.TableName = "transactions"
