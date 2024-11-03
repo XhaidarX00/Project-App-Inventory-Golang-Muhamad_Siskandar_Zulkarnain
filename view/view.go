@@ -32,11 +32,11 @@ func MenuAdmin() int {
 }
 
 func MenuProduct() int {
-	fmt.Println(utils.ColorMessage("yellow", "\n=---------- PAGE PRODUCT ----------="))
-	fmt.Println(utils.ColorMessage("yellow", "\n=---------- MENU PRODUCT ----------="))
-	fmt.Println("1. " + utils.ColorMessage("green", "CRUD Product"))
-	fmt.Println("2. " + utils.ColorMessage("green", "Record Item Outflow"))
-	fmt.Println("3. " + utils.ColorMessage("green", "Record Item Inflow"))
+	fmt.Println(utils.ColorMessage("yellow", "\n=---------- PRODUCT PAGE ----------="))
+	fmt.Println(utils.ColorMessage("yellow", "\n=---------- PRODUCT MENU ----------="))
+	fmt.Println("1. " + utils.ColorMessage("green", "Manage Products (CRUD)"))
+	fmt.Println("2. " + utils.ColorMessage("green", "View Products with Stock Under 10"))
+	fmt.Println("3. " + utils.ColorMessage("green", "Record Item Outflow and Inflow"))
 	fmt.Println("4. " + utils.ColorMessage("red", "Back"))
 	fmt.Print(utils.ColorMessage("yellow", "Choose an option: "))
 

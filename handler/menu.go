@@ -27,13 +27,13 @@ func MainMenu(db *sql.DB, userService *service.UserService) {
 				continue
 
 			default:
-				excMenu(db, userService)
+				excMenu(db)
 			}
 		}
 	}
 }
 
-func excMenu(db *sql.DB, userService *service.UserService) {
+func excMenu(db *sql.DB) {
 	funcDisplayName := view.ChoiceMenu("admin")
 	if funcDisplayName == nil {
 		utils.ErrorMessage("Menu tidak ditemukan!!")
@@ -47,16 +47,28 @@ func excMenu(db *sql.DB, userService *service.UserService) {
 
 	switch index {
 	case 1:
-		if !service.ManageStock(db, userService) {
+		if !service.ManageProduct(db) {
 			return
 		}
-		// case 2:
-		// 	if !service.RoleExcMentor(db, userService, index) {
-		// 		return
-		// 	}
-		// case 3:
-		// 	if !service.RoleExcStudent(db, userService, index) {
-		// 		return
-		// 	}
+	case 2:
+		if !service.ManageCategory(db) {
+			return
+		}
+	case 3:
+		if !service.ManageLocations(db) {
+			return
+		}
+	case 4:
+		if !service.SearchBy(db) {
+			return
+		}
+	case 5:
+		if !service.ManageTrxHistory(db) {
+			return
+		}
+
+	default:
+		utils.ErrorMessage("pilihan invalid!")
+		return
 	}
 }

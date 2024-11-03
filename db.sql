@@ -11,6 +11,9 @@ CREATE TABLE categories (
     name VARCHAR(50) NOT NULL
 );
 
+SELECT * FROM categories LIMIT 3 OFFSET 1;
+
+
 -- Buat tabel lokasi penyimpanan barang
 CREATE TABLE locations (
     id VARCHAR(10) PRIMARY KEY,
@@ -27,15 +30,43 @@ CREATE TABLE products (
     location_id VARCHAR(10) REFERENCES locations(id)
 );
 
+SELECT 
+    p.id AS product_id, 
+    p.name AS product_name, 
+    p.price AS product_price, 
+    p.stock AS product_stock, 
+    c.name AS category_name, 
+    l.name AS location_name
+FROM 
+    products p
+JOIN 
+    categories c ON c.id = p.category_id
+JOIN 
+    locations l ON l.id = p.location_id
+WHERE 
+    -- c.name LIKE '%Elektronik%'
+    -- p.name LIKE '%Scanner%'
+    p.id LIKE '%%pd%%'
+LIMIT 2 OFFSET 0;
+
 -- Buat tabel transaksi
 CREATE TABLE transactions (
     id VARCHAR(10) PRIMARY KEY,
     product_id VARCHAR(10) REFERENCES products(id),
     quantity INT NOT NULL,
     transaction_type VARCHAR(10) CHECK (transaction_type IN ('in', 'out')),
-    information VARCHAR(256)
+    information VARCHAR(256),
     timestamp TIMESTAMPTZ DEFAULT NOW()
 );
+
+SELECT trx.id, trx.quantity, trx.transaction_type AS "Trx Tipe", trx.information, 
+       p.name AS Items, c.name AS Category, l.name AS Location
+FROM transactions trx
+JOIN products p ON trx.product_id = p.id
+JOIN categories c ON p.category_id = c.id
+JOIN locations l ON p.location_id = l.id
+LIMIT 5 OFFSET 2;
+
 
 -- Masukkan data dummy
 -- Masukan dara user
@@ -60,6 +91,8 @@ INSERT INTO locations (id, name) VALUES
     ('loc4', 'Gudang Lantai 2 Rak Nomer 4');
 
 TRUNCATE locations;
+
+SELECT * FROM locations;
 
 -- Masukkan data produk/barang
 INSERT INTO products (id, name, price, stock, category_id, location_id) VALUES 
@@ -108,3 +141,4 @@ INSERT INTO transactions (id, product_id, quantity, transaction_type, informatio
     ('trx20', 'pd14', 5, 'out', 'Donated to charity', '2024-01-20 16:10:00');
 
 
+SELECT * FROM transactions;

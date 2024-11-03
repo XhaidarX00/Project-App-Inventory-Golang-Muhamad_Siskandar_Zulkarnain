@@ -19,6 +19,9 @@ type CRUDParams struct {
 	Values         []interface{}
 	Page           int
 	Limit          int
+	Under10        bool
+	BY             string
+	Filter         string
 	IsUpdate       bool
 	KeyUpdate      string
 	KeyDelete      string
@@ -236,48 +239,100 @@ func DeleteData(params CRUDParams) string {
 	return ""
 }
 
-func GetProductsPaginated(db *sql.DB, page int, limit int) (model.PaginationResponse, error) {
-	offset := (page - 1) * limit
+func GetProductsPaginated(db *sql.DB, params CRUDParams) (model.PaginationResponse, string) {
+	offset := (params.Page - 1) * params.Limit
 
-	// Query to get the total number of items
 	var totalItems int
-	err := db.QueryRow("SELECT COUNT(*) FROM products").Scan(&totalItems)
+	query := fmt.Sprintf("SELECT COUNT(*) FROM %s", params.TableName)
+	err := db.QueryRow(query).Scan(&totalItems)
 	if err != nil {
-		return model.PaginationResponse{}, err
+		return model.PaginationResponse{}, err.Error()
 	}
 
-	// Query to get paginated products
-	rows, err := db.Query(`
-		SELECT p.id, p.name, p.price, p.stock, c.name AS category, l.name AS location
+	var queryMain string
+
+	if params.BY != "" {
+		queryMain = fmt.Sprintf(`SELECT p.id AS product_id, p.name AS product_name, p.price AS product_price, p.stock AS product_stock, c.name AS category_name, l.name AS location_name
+		FROM products p
+		JOIN categories c ON c.id = p.category_id
+		JOIN locations l ON l.id = p.location_id
+		WHERE %s
+		LIMIT $1 OFFSET $2`, params.Filter)
+	} else if params.Under10 {
+		queryMain = `SELECT p.id AS product_id, p.name AS product_name, p.price AS product_price, p.stock AS product_stock, c.name AS category_name, l.name AS location_name
+		FROM products p
+		JOIN categories c ON c.id = p.category_id
+		JOIN locations l ON l.id = p.location_id
+		WHERE p.stock < 10
+		LIMIT $1 OFFSET $2`
+	} else if params.TableName == "products" {
+		queryMain = `SELECT p.id, p.name, p.price, p.stock, c.name AS category, l.name AS location
 		FROM products p
 		JOIN categories c ON p.category_id = c.id
 		JOIN locations l ON p.location_id = l.id
-		LIMIT $1 OFFSET $2`, limit, offset)
+		LIMIT $1 OFFSET $2`
+	} else if params.TableName == "transactions" {
+		queryMain = `SELECT trx.id, trx.quantity, trx.transaction_type AS "Trx Tipe", trx.information, 
+		p.name AS Items, c.name AS Category, l.name AS Location
+ 		FROM transactions trx
+		JOIN products p ON trx.product_id = p.id
+		JOIN categories c ON p.category_id = c.id
+		JOIN locations l ON p.location_id = l.id
+		LIMIT $1 OFFSET $2`
+	} else if params.TableName == "categories" || params.TableName == "locations" {
+		queryMain = fmt.Sprintf(`SELECT * FROM %s LIMIT $1 OFFSET $2`, params.TableName)
+	}
+
+	rows, err := db.Query(queryMain, params.Limit, offset)
 	if err != nil {
-		return model.PaginationResponse{}, err
+		return model.PaginationResponse{}, err.Error()
 	}
 	defer rows.Close()
 
-	// Parse rows into products
-	var products []model.Product
+	columns, err := rows.Columns()
+	if err != nil {
+		return model.PaginationResponse{}, fmt.Sprintf("error getting columns: %v", err)
+	}
+
+	values := make([]interface{}, len(columns))
+	for i := range values {
+		values[i] = new(sql.NullString)
+	}
+
+	var results []map[string]interface{}
+
 	for rows.Next() {
-		var product model.Product
-		if err := rows.Scan(&product.ID, &product.Name, &product.Price, &product.Stock, &product.Category, &product.Location); err != nil {
-			return model.PaginationResponse{}, err
+		err := rows.Scan(values...)
+		if err != nil {
+			return model.PaginationResponse{}, fmt.Sprintf("error scanning row: %v", err)
 		}
-		products = append(products, product)
+
+		rowData := make(map[string]interface{})
+		for i, col := range columns {
+			val := values[i].(*sql.NullString)
+			if val.Valid {
+				rowData[col] = val.String
+			} else {
+				rowData[col] = nil
+			}
+		}
+		results = append(results, rowData)
+	}
+
+	if results == nil {
+		return model.PaginationResponse{}, "Data tidak ditemukan!"
 	}
 
 	// Calculate total pages
-	totalPages := (totalItems + limit - 1) / limit
+	totalPages := (totalItems + params.Limit - 1) / params.Limit
 
 	return model.PaginationResponse{
 		StatusCode: 200,
 		Message:    "Data retrieved successfully",
-		Page:       page,
-		Limit:      limit,
+		Page:       params.Page,
+		Limit:      params.Limit,
 		TotalItems: totalItems,
 		TotalPages: totalPages,
-		Data:       products,
-	}, nil
+		Data:       results,
+	}, ""
 }

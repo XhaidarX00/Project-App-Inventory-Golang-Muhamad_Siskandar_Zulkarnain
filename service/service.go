@@ -33,7 +33,7 @@ func (usr *UserService) LoginService(user model.Users) (*model.Response, string,
 	return &response, userReslut.Username, nil
 }
 
-func ManageStock(db *sql.DB, userService *UserService) bool {
+func ManageProduct(db *sql.DB) bool {
 	index := utils.ChoseMenu(view.MenuProduct)
 	params := repository.CRUDParams{DB: db}
 
@@ -44,22 +44,52 @@ func ManageStock(db *sql.DB, userService *UserService) bool {
 		params.Prefix = "pd"
 		params.KeyUpdate = "pd21"
 		params.KeyDelete = "pd22"
-		params.Page = 2
+		params.Page = 1
 		params.Limit = 5
 		params.JSONPath = "C:/Belajar Coding/lumoshive-academy/Golang Beginer/Testing/Inventory/file_json/newProduct.json"
 		params.JSONUPDATEPath = "C:/Belajar Coding/lumoshive-academy/Golang Beginer/Testing/Inventory/file_json/updateProduct.json"
-		params.Columns = []string{"id", "name", "price", "stock", "category_id", "location_id"}
 
 		chosenIndex := utils.ChoseMenuCrud(view.MenuCrud, strings.ToUpper(params.TableName))
 		if chosenIndex == 0 {
 			return false
 		}
 
-		if !CrudChose(chosenIndex, db, userService, params) {
+		if !CrudChose(chosenIndex, db, params) {
 			return false
 		}
 
 	case 2:
+		params.TableName = "products"
+		params.Page = 1
+		params.Limit = 2
+		params.Under10 = true
+
+		results, err := repository.GetProductsPaginated(db, params)
+		if err != "" {
+			utils.ErrorMessage(err)
+			return false
+		}
+		utils.DisplayDataJson(model.Response{StatusCode: 200, Message: "Read Success", Data: results})
+
+	case 3:
+		params.TableName = "transactions"
+		params.IDColumn = "id"
+		params.Prefix = "trx"
+		params.KeyUpdate = "trx21"
+		params.KeyDelete = "trx22"
+		params.Page = 5
+		params.Limit = 5
+		params.JSONPath = "C:/Belajar Coding/lumoshive-academy/Golang Beginer/Testing/Inventory/file_json/newTransactions.json"
+		params.JSONUPDATEPath = "C:/Belajar Coding/lumoshive-academy/Golang Beginer/Testing/Inventory/file_json/updateTransactions.json"
+
+		chosenIndex := utils.ChoseMenuCrud(view.MenuCrud, strings.ToUpper(params.TableName))
+		if chosenIndex == 0 {
+			return false
+		}
+
+		if !CrudChose(chosenIndex, db, params) {
+			return false
+		}
 
 	default:
 		utils.ErrorMessage("menu tidak ditemukan!")
@@ -69,7 +99,123 @@ func ManageStock(db *sql.DB, userService *UserService) bool {
 	return true
 }
 
-func CrudChose(index int, db *sql.DB, userService *UserService, params repository.CRUDParams) bool {
+func ManageCategory(db *sql.DB) bool {
+	params := repository.CRUDParams{DB: db}
+	params.TableName = "categories"
+	params.IDColumn = "id"
+	params.Prefix = "ctg"
+	params.KeyUpdate = "ctg6"
+	params.KeyDelete = "ctg6"
+	params.Page = 3
+	params.Limit = 2
+	params.JSONPath = "C:/Belajar Coding/lumoshive-academy/Golang Beginer/Testing/Inventory/file_json/newCategory.json"
+	params.JSONUPDATEPath = "C:/Belajar Coding/lumoshive-academy/Golang Beginer/Testing/Inventory/file_json/updateCategory.json"
+
+	fmt.Println(utils.ColorMessage("yellow", "\n=---------- PAGE CATEGORY ----------="))
+	chosenIndex := utils.ChoseMenuCrud(view.MenuCrud, strings.ToUpper(params.TableName))
+	if chosenIndex == 0 {
+		return false
+	}
+
+	if !CrudChose(chosenIndex, db, params) {
+		return false
+	}
+
+	return true
+}
+
+func ManageLocations(db *sql.DB) bool {
+	params := repository.CRUDParams{DB: db}
+	params.TableName = "locations"
+	params.IDColumn = "id"
+	params.Prefix = "loc"
+	params.KeyUpdate = "loc5"
+	params.KeyDelete = "loc6"
+	params.Page = 1
+	params.Limit = 2
+	params.JSONPath = "C:/Belajar Coding/lumoshive-academy/Golang Beginer/Testing/Inventory/file_json/newLocation.json"
+	params.JSONUPDATEPath = "C:/Belajar Coding/lumoshive-academy/Golang Beginer/Testing/Inventory/file_json/updateLocation.json"
+
+	fmt.Println(utils.ColorMessage("yellow", "\n=---------- PAGE LOCATIONS ----------="))
+	chosenIndex := utils.ChoseMenuCrud(view.MenuCrud, strings.ToUpper(params.TableName))
+	if chosenIndex == 0 {
+		return false
+	}
+
+	if !CrudChose(chosenIndex, db, params) {
+		return false
+	}
+
+	return true
+}
+
+func SearchBy(db *sql.DB) bool {
+	index := utils.ChoseMenu(view.MenuSearch)
+	params := repository.CRUDParams{DB: db}
+	params.TableName = "products"
+	params.Page = 1
+	params.Limit = 5
+
+	switch index {
+	case 1: // name
+		params.BY = "p.name"
+	case 2: // category
+		params.BY = "c.name"
+	case 3: // item code
+		params.BY = "p.id"
+	}
+
+	var searchBy string
+	fmt.Print("Enter search keyword(s): ")
+	fmt.Scan(&searchBy)
+
+	keywords := parseKeywords(searchBy)
+	params.Filter = buildSearchQuery(params.BY, keywords)
+	results, err := repository.GetProductsPaginated(db, params)
+	if err != "" {
+		utils.ErrorMessage(err)
+		return false
+	}
+
+	utils.DisplayDataJson(model.Response{StatusCode: 200, Message: "Read Success", Data: results})
+
+	return true
+}
+
+func parseKeywords(input string) []string {
+	words := strings.Fields(input) // Pisahkan input berdasarkan spasi
+	return words
+}
+
+func buildSearchQuery(column string, keywords []string) string {
+	var conditions []string
+	for _, keyword := range keywords {
+		if !strings.HasPrefix(keyword, "pd") {
+			keyword = utils.Capitalize(keyword)
+		}
+		conditions = append(conditions, fmt.Sprintf("%s LIKE '%%%s%%'", column, keyword))
+	}
+	return strings.Join(conditions, " OR ") // Menggabungkan kondisi dengan OR untuk pencarian fleksibel
+}
+
+func ManageTrxHistory(db *sql.DB) bool {
+	params := repository.CRUDParams{DB: db}
+
+	params.TableName = "transactions"
+	params.Page = 1
+	params.Limit = 2
+
+	results, err := repository.GetProductsPaginated(db, params)
+	if err != "" {
+		utils.ErrorMessage(err)
+		return false
+	}
+	utils.DisplayDataJson(model.Response{StatusCode: 200, Message: "Read Success", Data: results})
+
+	return true
+}
+
+func CrudChose(index int, db *sql.DB, params repository.CRUDParams) bool {
 	switch index {
 	case 1: // Create
 		params.IsUpdate = false
@@ -80,21 +226,12 @@ func CrudChose(index int, db *sql.DB, userService *UserService, params repositor
 		utils.DisplayDataJson(model.Response{StatusCode: 201, Message: "Create Success"})
 
 	case 2: // Read
-		if params.TableName == "products" {
-			results, err := repository.GetProductsPaginated(db, params.Page, params.Limit)
-			if err != nil {
-				utils.ErrorMessage(err.Error())
-				return false
-			}
-			utils.DisplayDataJson(model.Response{StatusCode: 200, Message: "Read Success", Data: results})
-		} else {
-			results, err := repository.ReadData(params)
-			if err != "" {
-				utils.ErrorMessage(err)
-				return false
-			}
-			utils.DisplayDataJson(model.Response{StatusCode: 200, Message: "Read Success", Data: results})
+		results, err := repository.GetProductsPaginated(db, params)
+		if err != "" {
+			utils.ErrorMessage(err)
+			return false
 		}
+		utils.DisplayDataJson(model.Response{StatusCode: 200, Message: "Read Success", Data: results})
 
 	case 3: // Update
 		params.IsUpdate = true
@@ -118,108 +255,3 @@ func CrudChose(index int, db *sql.DB, userService *UserService, params repositor
 
 	return true
 }
-
-// func RoleExcMentor(db *sql.DB, userService *UserService, index int) bool {
-// 	params := repository.CRUDParams{DB: db}
-
-// 	// Tampilkan menu dan pilih indeks untuk CRUD
-// 	switch index {
-// 	case 1:
-// 		params.TableName = "Class_Schedule"
-// 		params.Columns = []string{"schedule_id", "class_id", "date", "start_time", "end_time"}
-
-// 	case 2:
-// 		params.TableName = "materials"
-// 		params.Columns = []string{"material_id", "title", "description", "video_url", "mentor_id"}
-
-// 	case 3:
-// 		params.TableName = "Attendance"
-// 		params.Columns = []string{"attendance_id", "user_id", "schedule_id", "status"}
-// 		params.Condition = "user_id LIKE 'mnt%'"
-
-// 	case 4:
-// 		params.TableName = "Attendance"
-// 		params.Columns = []string{"attendance_id", "user_id", "schedule_id", "status"}
-// 		params.Condition = "user_id LIKE 'std%'"
-
-// 	case 5:
-// 		params.TableName = "Grades"
-// 		params.Columns = []string{"grade_id", "user_id", "assignment_id", "grade"}
-
-// 	case 6:
-// 		params.TableName = "Assignments"
-// 		params.IDColumn = "assignment_id"
-// 		params.Prefix = "asg"
-// 		params.KeyUpdate = "asg2"
-// 		params.KeyDelete = "asg3"
-// 		params.JSONPath = "C:/Belajar Coding/lumoshive-academy/Golang Beginer/Testing/Inventory/file_json/updateProduct.jsonnewAssignment.json"
-// 		params.JSONUPDATEPath = "C:/Belajar Coding/lumoshive-academy/Golang Beginer/Testing/Elearning/file_json/updateAssignment.json"
-// 		params.Columns = []string{"assignment_id", "class_id", "title", "description", "deadline"}
-
-// 	default:
-// 		utils.ErrorMessage("menu tidak ditemukan!")
-// 		return false
-// 	}
-
-// 	if index == 6 {
-// 		chosenIndex := utils.ChoseMenuCrud(view.MenuCrud, strings.ToUpper(params.TableName))
-// 		if chosenIndex == 0 {
-// 			return false
-// 		}
-
-// 		if !CrudChose(chosenIndex, db, userService, params) {
-// 			return false
-// 		}
-
-// 	} else {
-// 		results, err := repository.ReadData(params)
-// 		if err != "" {
-// 			utils.ErrorMessage(err)
-// 			return false
-// 		}
-// 		utils.DisplayDataJson(model.Response{StatusCode: 200, Message: "Read Success", Data: results})
-// 	}
-
-// 	return true
-// }
-
-// func RoleExcStudent(db *sql.DB, userService *UserService, index int) bool {
-// 	params := repository.CRUDParams{DB: db}
-
-// 	// Tampilkan menu dan pilih indeks untuk CRUD
-// 	switch index {
-// 	case 1:
-// 		params.TableName = "Class_Schedule"
-// 		params.Columns = []string{"schedule_id", "class_id", "date", "start_time", "end_time"}
-
-// 	case 2:
-// 		params.TableName = "materials"
-// 		params.Columns = []string{"material_id", "title", "description", "video_url", "mentor_id"}
-
-// 	case 3:
-// 		params.TableName = "Attendance"
-// 		params.Columns = []string{"attendance_id", "user_id", "schedule_id", "status"}
-// 		params.Condition = "user_id LIKE 'std%'"
-
-// 	case 4:
-// 		params.TableName = "Grades"
-// 		params.Columns = []string{"grade_id", "user_id", "assignment_id", "grade"}
-
-// 	case 5:
-// 		params.TableName = "Assignments"
-// 		params.Columns = []string{"assignment_id", "class_id", "title", "description", "deadline"}
-
-// 	default:
-// 		utils.ErrorMessage("menu tidak ditemukan!")
-// 		return false
-// 	}
-
-// 	results, err := repository.ReadData(params)
-// 	if err != "" {
-// 		utils.ErrorMessage(err)
-// 		return false
-// 	}
-// 	utils.DisplayDataJson(model.Response{StatusCode: 200, Message: "Read Success", Data: results})
-
-// 	return true
-// }
