@@ -199,11 +199,20 @@ func buildSearchQuery(column string, keywords []string) string {
 }
 
 func ManageTrxHistory(db *sql.DB) bool {
+	index := utils.ChoseMenu(view.MenuTransaction)
 	params := repository.CRUDParams{DB: db}
 
 	params.TableName = "transactions"
 	params.Page = 1
-	params.Limit = 2
+	params.Limit = 5
+	params.BY = "transaction_type"
+
+	switch index {
+	case 1:
+		params.Filter = fmt.Sprintf("%s = '%s'", params.BY, "in")
+	case 2:
+		params.Filter = fmt.Sprintf("%s = '%s'", params.BY, "out")
+	}
 
 	results, err := repository.GetProductsPaginated(db, params)
 	if err != "" {

@@ -252,12 +252,16 @@ func GetProductsPaginated(db *sql.DB, params CRUDParams) (model.PaginationRespon
 	var queryMain string
 
 	if params.BY != "" {
-		queryMain = fmt.Sprintf(`SELECT p.id AS product_id, p.name AS product_name, p.price AS product_price, p.stock AS product_stock, c.name AS category_name, l.name AS location_name
-		FROM products p
-		JOIN categories c ON c.id = p.category_id
-		JOIN locations l ON l.id = p.location_id
-		WHERE %s
-		LIMIT $1 OFFSET $2`, params.Filter)
+		if params.TableName != "products" {
+			queryMain = fmt.Sprintf(`SELECT * FROM %s WHERE %s LIMIT $1 OFFSET $2`, params.TableName, params.Filter)
+		} else {
+			queryMain = fmt.Sprintf(`SELECT p.id AS product_id, p.name AS product_name, p.price AS product_price, p.stock AS product_stock, c.name AS category_name, l.name AS location_name
+			FROM products p
+			JOIN categories c ON c.id = p.category_id
+			JOIN locations l ON l.id = p.location_id
+			WHERE %s
+			LIMIT $1 OFFSET $2`, params.Filter)
+		}
 	} else if params.Under10 {
 		queryMain = `SELECT p.id AS product_id, p.name AS product_name, p.price AS product_price, p.stock AS product_stock, c.name AS category_name, l.name AS location_name
 		FROM products p
